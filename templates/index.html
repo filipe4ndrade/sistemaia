@@ -1,0 +1,186 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Análise de Classificadores</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="static/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Configurações</h2>
+            <form id="analysisForm" class="mt-4">
+                <div class="mb-3">
+                    <label for="file" class="form-label">Arquivo CSV:</label>
+                    <input type="file" class="form-control" id="file" accept=".csv" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="target_column" class="form-label">Coluna Alvo:</label>
+                    <select class="form-select" id="target_column" required>
+                        <option value="">Selecione a coluna...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Tratamento de Valores Ausentes (NaN):</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="nan_handling" 
+                               id="drop_nan" value="drop" checked>
+                        <label class="form-check-label" for="drop_nan">
+                            Remover Linhas com NaN
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="nan_handling" 
+                               id="mean_nan" value="mean">
+                        <label class="form-check-label" for="mean_nan">
+                            Preencher com Média
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="nan_handling" 
+                               id="median_nan" value="median">
+                        <label class="form-check-label" for="median_nan">
+                            Preencher com Mediana
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Método de Validação:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="validation_method" 
+                               id="train_test" value="train_test_split" checked>
+                        <label class="form-check-label" for="train_test">
+                            Divisão Treino/Teste
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="validation_method" 
+                               id="cross_val" value="cross_validation">
+                        <label class="form-check-label" for="cross_val">
+                            Validação Cruzada
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="trainTestOptions">
+                    <div class="mb-3">
+                        <label for="test_size" class="form-label">
+                            Proporção de Teste (0.1 - 0.5):
+                        </label>
+                        <input type="number" class="form-control" id="test_size" 
+                               min="0.1" max="0.5" step="0.1" value="0.2">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="iterations" class="form-label">Repetições:</label>
+                        <input type="number" class="form-control" id="iterations" 
+                               min="1" max="100" value="10">
+                    </div>
+                </div>
+                
+                <div id="crossValOptions" style="display: none;">
+                    <div class="mb-3">
+                        <label for="n_folds" class="form-label">Número de Folds:</label>
+                        <input type="number" class="form-control" id="n_folds" 
+                               min="2" max="20" value="5">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Classificadores:</label>
+                    <div class="classifiers-grid">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="classifiers" 
+                                   value="naive_bayes" id="naive_bayes">
+                            <label class="form-check-label" for="naive_bayes">Naive Bayes</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="classifiers" 
+                                   value="decision_tree" id="decision_tree">
+                            <label class="form-check-label" for="decision_tree">Árvore de Decisão</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="classifiers" 
+                                   value="svm" id="svm">
+                            <label class="form-check-label" for="svm">SVM</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="classifiers" 
+                                   value="knn" id="knn">
+                            <label class="form-check-label" for="knn">KNN</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="classifiers" 
+                                   value="random_forest" id="random_forest">
+                            <label class="form-check-label" for="random_forest">Random Forest</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="classifiers" 
+                                   value="logistic_regression" id="logistic_regression">
+                            <label class="form-check-label" for="logistic_regression">Regressão Logística</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100">Analisar</button>
+            </form>
+        </div>
+        
+        <div class="main-content">
+            <div id="loadingSpinner" class="spinner" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Carregando...</span>
+                </div>
+            </div>
+            
+            <div id="results" style="display: none;">
+                <div class="dataset-info card mb-4">
+                    <div class="card-header">
+                        <h3>Informações do Dataset</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="datasetStats"></div>
+                        <div id="classDistribution"></div>
+                    </div>
+                </div>
+                
+                <div class="results-grid">
+                    <div class="metrics-table card">
+                        <div class="card-header">
+                            <h3>Métricas de Avaliação</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Classificador</th>
+                                            <th>Acurácia</th>
+                                            <th>Precisão</th>
+                                            <th>Recall</th>
+                                            <th>F1-Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resultsTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="confusionMatrices" class="card">
+                        <div class="card-header">
+                            <h3>Matrizes de Confusão</h3>
+                        </div>
+                        <div class="card-body matrices-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="static/script.js"></script>
+</body>
+</html>
