@@ -29,19 +29,24 @@ CLASSIFIERS = {
 }
 
 def create_confusion_matrix_plot(y_true, y_pred, class_names):
-    cm = confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(10,8))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=class_names, yticklabels=class_names)
-    plt.title('Matriz de Confusão')
-    plt.ylabel('Valor Real')
-    plt.xlabel('Valor Predito')
+    import plotly.express as px
+    import plotly
     
-    buf = BytesIO()
-    plt.savefig(buf, format='png')
-    plt.close()
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode('utf-8')
+    # Criar matriz de confusão
+    cm = confusion_matrix(y_true, y_pred)
+    
+    # Criar heatmap com plotly
+    fig = px.imshow(cm,
+                    labels=dict(x="Predito", y="Real", color="Contagem"),
+                    x=class_names,
+                    y=class_names,
+                    text=cm,
+                    aspect="auto",
+                    title="Matriz de Confusão")
+    
+    # Converter para JSON e depois para base64
+    fig_json = plotly.io.to_json(fig)
+    return base64.b64encode(fig_json.encode()).decode('utf-8')
 
 @app.route('/')
 def home():
