@@ -50,11 +50,11 @@ def home():
 @app.route('/analyze', methods=['POST'])
 def analyze():
     data = request.get_json()
-    
+
     # Carregar dados do CSV do localStorage (enviado como string base64)
     csv_data = base64.b64decode(data['csv_data'].split(',')[1]).decode('utf-8')
     df = pd.read_csv(io.StringIO(csv_data))
-    
+
     # Parâmetros da análise
     target_column = data['target_column']
     validation_method = data['validation_method']
@@ -64,40 +64,57 @@ def analyze():
     selected_classifiers = data['classifiers']
     nan_handling = data['nan_handling']
     
+    # Obter a opção de deletar ou não as linhas com NaN
+    delete_nan_option = data.get('delete_nan_option', 'yes')  # Padrão é 'yes' caso não enviado
+    
     if target_column not in df.columns:
         return jsonify({'error': 'Coluna alvo não encontrada'}), 400
     
     # Preparar dados
     X = df.drop(target_column, axis=1)
     y = df[target_column]
-    class_names = sorted(y.unique())
     
-    results = {}
-    confusion_matrices = {}
-
-     # Handle NaN values
-    if nan_handling == 'drop':
-        # Drop rows with any NaN values
+    # Remover colunas completamente vazias
+    X = X.dropna(how='all', axis=1)
+    
+    if delete_nan_option == 'yes':
+        # Remover linhas com qualquer NaN (confirmado pelo usuário)
         mask = X.notna().all(axis=1) & y.notna()
         X = X[mask]
         y = y[mask]
     else:
-        # Create imputer
+        # Deixar as linhas com NaN intactas (não removê-las)
+        pass
+    
+    if nan_handling == 'drop':
+        # Caso o nan_handling seja 'drop', aplicar a mesma lógica de remover NaNs
+        mask = X.notna().all(axis=1) & y.notna()
+        X = X[mask]
+        y = y[mask]
+    else:
+        # Imputação de valores ausentes
         imputer = SimpleImputer(strategy=nan_handling)
-        # Fit and transform X
         X_imputed = imputer.fit_transform(X)
-        # Convert back to DataFrame with correct columns
+        
+        # Garantir que o número de colunas seja consistente
         X = pd.DataFrame(X_imputed, columns=X.columns)
-        # Drop rows where target is NaN
+        
+        # Remover linhas onde o alvo é NaN
         mask = y.notna()
         X = X[mask]
         y = y[mask]
     
-    # Check if we have enough data after NaN handling
+    # Verificar se há dados suficientes após o tratamento de NaN
     if len(X) == 0:
         return jsonify({'error': 'Não há dados suficientes após o tratamento de valores ausentes'}), 400
     
+
+    
     class_names = sorted(y.unique())
+    
+    # Inicializar dicionário de resultados
+    results = {}
+    confusion_matrices = {}
     
     for clf_name in selected_classifiers:
         clf_display_name, clf = CLASSIFIERS[clf_name]
@@ -176,4 +193,4 @@ def analyze():
     })
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
